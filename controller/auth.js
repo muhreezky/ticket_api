@@ -56,7 +56,7 @@ const AuthController = {
   },
   login: async (req, res) => {
     try {
-      const { username = "", email = "", password, phone_num = ""} = req.body;
+      const { username = "", email = "", password, phone_num = "" } = req.body;
       const userCheck = await User.findOne({
         where: {
           [sequelize.Op.or]: [
@@ -65,14 +65,52 @@ const AuthController = {
         }
       });
 
+      if (userCheck.suspended) {
+        return res.status(403).json({
+          message: "Sorry, your account is suspended"
+        })
+      }
+
+      // Sudah berapa kali enter password salah
+      const attempts = userCheck.pass_attempts;
+
+      // apakah password benar atau salah
       const isValid = await bcrypt.compare(password, userCheck.password);
+
       if (!isValid) {
+        if (attempts === 3) {
+          await User.update(
+            {
+              suspended: true
+            },
+            {
+              where: {
+                user_id: userCheck.user_id
+              }
+            }
+          );
+
+          return res.status(403).json({
+            message: "You reached maximum attempt, your account is now suspended"
+          });
+        }
+
+        await User.update(
+          {
+            pass_attempts: attempts + 1
+          },
+          {
+            where: {
+              user_id: userCheck.user_id
+            }
+          }
+        );
         return res.status(400).json({
           message: 'Wrong Credentials, please check again'
         });
       }
 
-      const payload = { id: userCheck.id, isAdmin: userCheck.isAdmin };
+      const payload = { user_id: userCheck.user_id, isAdmin: userCheck.isAdmin };
       const token = jwt.sign(payload, 'ticket_app', { expiresIn: '2h' });
 
       return res.status(200).json({

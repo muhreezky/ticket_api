@@ -19,7 +19,6 @@ const verifyToken = (req, res, next) => {
     }
 
     req.user = verifiedUser;
-    console.log(req.user);
     next();
   }
   catch (err) {
@@ -33,7 +32,9 @@ const checkPrivilege = (req, res, next) => {
   if (req.user.isAdmin) {
     next();
   }
-  return res.status(401).send("Unauthorized");
+  else {
+    return res.status(401).send("Unauthorized");
+  }
 }
 
 module.exports = {
